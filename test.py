@@ -123,8 +123,8 @@ def preprocess_text(text):
 def expand_query(query):
     # list of synonms
     synonyms = {
-        "music": ["song","melody", "opera", "piece", "rap", "rock", "singing", "soul", "tune"],
-        "origin": ["ancestor", "ancestry", "connection", "element", "influence", "motive", "provenance", "root", "source"],
+        "music": ["song","melody", "opera", "piece", "singing", "tune"],
+        "origin": ["ancestor", "ancestry", "connection", "element", "influence", "provenance", "root", "source"],
         "popular": ["attractive","beloved","famous","fashionable","favored","prominent","suitable","trendy"]
     }
     
