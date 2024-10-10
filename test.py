@@ -9,6 +9,11 @@ import pprint as pp
 
 import bm25s
 
+import re
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -24,14 +29,14 @@ for topic in test_bed.train_topics:
         continue
 
     print()
-    print(conv_id, "  ", topic['title'])
+    #print(conv_id, "  ", topic['title'])
 
     for turn in topic['turn']:
         turn_id = turn['number']
         utterance = turn['raw_utterance']
         topic_turn_id = '%d_%d'% (conv_id, turn_id)
         
-        print(topic_turn_id, utterance)
+        #print(topic_turn_id, utterance)
         topics[topic_turn_id] = utterance
 
 print()
@@ -43,14 +48,14 @@ for topic in test_bed.test_topics:
         continue
 
     print()
-    print(conv_id, "  ", topic['title'])
+    #print(conv_id, "  ", topic['title'])
 
     for turn in topic['turn']:
         turn_id = turn['number']
         utterance = turn['raw_utterance']
         topic_turn_id = '%d_%d'% (conv_id, turn_id)
         
-        print(topic_turn_id, utterance)
+        #print(topic_turn_id, utterance)
         topics[topic_turn_id] = utterance
 
 test_bed.test_relevance_judgments
@@ -59,7 +64,7 @@ test_bed.test_relevance_judgments
 opensearch = osearch.OSsimpleAPI()
 
 
-numdocs = 10
+numdocs = 100
 test_query = topics['40_1']
 opensearch_results = opensearch.search_body(test_query, numDocs = numdocs)
 print(opensearch_results)
@@ -99,35 +104,63 @@ for i in range(len(test_results[0])):
     doc, score = test_results[0, i], scores[0, i]
     print(f"Rank {i+1} (score: {score:.2f}): {doc}")
 
-import re
+
+
+# Initialize stop words and stemmer
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
 
 def preprocess_text(text):
-    # Lowercase and remove non-alphanumeric characters
+
     text = text.lower()
     text = re.sub(r'[^a-z0-9\s]', '', text)
+    # stop words
+    text = ' '.join([word for word in text.split() if word not in stop_words])
+    # stemming
+    text = ' '.join([stemmer.stem(word) for word in text.split()])
     return text
+
+def expand_query(query):
+    # list of synonms
+    synonyms = {
+        "music": ["song","melody", "opera", "piece", "rap", "rock", "singing", "soul", "tune"],
+        "origin": ["ancestor", "ancestry", "connection", "element", "influence", "motive", "provenance", "root", "source"],
+        "popular": ["attractive","beloved","famous","fashionable","favored","prominent","suitable","trendy"]
+    }
+    
+    expanded_query = query
+    for word in query.split():
+        if word in synonyms:
+            expanded_query += ' ' + ' '.join(synonyms[word])
+    
+    return expanded_query
 
 # Build the corpus
 corpus = []
 for index, row in opensearch_results.iterrows():
     doc_id = row['_id']
     doc_body = opensearch.get_doc_body(doc_id)
-    processed_doc = preprocess_text(doc_body)  # Preprocess the document
+    processed_doc = preprocess_text(doc_body) 
     corpus.append(processed_doc)
 
-tokenized_query = bm25s.tokenize(query)
+
+query = test_query
+processed_query = preprocess_text(query)
+expanded_query = expand_query(processed_query)
+print('Unprocessed query: ' + query)
+print('Processed: ' + processed_query)
+print('Expanded Query:', expanded_query)
+
+# tokenize and index
+tokenized_query = bm25s.tokenize(expanded_query)
 print("Tokenized Query:", tokenized_query)
 
 retriever = bm25s.BM25(corpus=corpus)
 retriever.index(bm25s.tokenize(corpus))
-query = test_query
-processed_query = preprocess_text(query)
-print('Unprocessed query: ' + query)
-print('processed: ' + processed_query)
 
 k = 4
+results, scores = retriever.retrieve(tokenized_query, k=k)
 
-results, scores = retriever.retrieve(bm25s.tokenize(processed_query), k=k)
 for i in range(len(results[0])):
     doc, score = results[0, i], scores[0, i]
     print(f"Rank {i+1} (score: {score:.2f}): {doc}")
