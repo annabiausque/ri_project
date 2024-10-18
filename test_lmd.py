@@ -95,36 +95,36 @@ bm25_doc_ids = [content_to_id[doc] for doc in bm25_results[0] if doc in content_
 
 # LMDRetriever
 class LMDRetriever:
-    def __init__(self, opensearch, corpus_ids):
-        self.opensearch = opensearch
-        self.corpus_ids = corpus_ids
-        self.corpus_length = 0
-        self.doc_count = len(corpus_ids)
-        self.index = self.build_index()
-        self.collection_frequency = self.build_collection_frequency()
-        self.mu = self.calculate_mu()
+    def __init__(test_bed, opensearch, corpus_ids):
+        test_bed.opensearch = opensearch
+        test_bed.corpus_ids = corpus_ids
+        test_bed.corpus_length = 0
+        test_bed.doc_count = len(corpus_ids)
+        test_bed.index = test_bed.build_index()
+        test_bed.collection_frequency = test_bed.build_collection_frequency()
+        test_bed.mu = test_bed.calculate_mu()
     
-    def calculate_mu(self):
-        avg_doc_length = self.corpus_length / self.doc_count
+    def calculate_mu(test_bed):
+        avg_doc_length = test_bed.corpus_length / test_bed.doc_count
         return 0.1 * avg_doc_length
 
-    def build_index(self):
+    def build_index(test_bed):
         index = {}
-        for doc_id in self.corpus_ids:
-            term_vectors = self.opensearch.doc_term_vectors(doc_id)
+        for doc_id in test_bed.corpus_ids:
+            term_vectors = test_bed.opensearch.doc_term_vectors(doc_id)
             if term_vectors:
                 terms = term_vectors[3]
                 for term, stats in terms.items():
                     if term not in index:
                         index[term] = {}
                     index[term][doc_id] = stats[0]
-                    self.corpus_length += stats[0]
+                    test_bed.corpus_length += stats[0]
         return index
 
-    def build_collection_frequency(self):
+    def build_collection_frequency(test_bed):
         collection_frequency = {}
-        for doc_id in self.corpus_ids:
-            term_vectors = self.opensearch.doc_term_vectors(doc_id)
+        for doc_id in test_bed.corpus_ids:
+            term_vectors = test_bed.opensearch.doc_term_vectors(doc_id)
             if term_vectors:
                 terms = term_vectors[3]
                 for term, stats in terms.items():
@@ -133,25 +133,25 @@ class LMDRetriever:
                     collection_frequency[term] += stats[2]
         return collection_frequency
 
-    def score(self, query, doc_id):
+    def score(test_bed, query, doc_id):
         score = 1.0
-        term_vectors = self.opensearch.doc_term_vectors(doc_id)
+        term_vectors = test_bed.opensearch.doc_term_vectors(doc_id)
         if term_vectors:
             terms = term_vectors[3]
             doc_length = sum([stats[0] for stats in terms.values()])
             for term in query.split():
                 tf = terms.get(term, [0])[0]
-                cf = self.collection_frequency.get(term, 0)
-                p_ml = cf / self.corpus_length
-                p_lmd = (tf + self.mu * p_ml) / (doc_length + self.mu)
+                cf = test_bed.collection_frequency.get(term, 0)
+                p_ml = cf / test_bed.corpus_length
+                p_lmd = (tf + test_bed.mu * p_ml) / (doc_length + test_bed.mu)
                 if p_lmd > 0:
                     score *= p_lmd
         return score
 
-    def retrieve(self, query, k):
+    def retrieve(test_bed, query, k):
         scores = []
-        for doc_id in self.corpus_ids:
-            score = self.score(query, doc_id)
+        for doc_id in test_bed.corpus_ids:
+            score = test_bed.score(query, doc_id)
             scores.append((doc_id, score))
         scores = sorted(scores, key=lambda x: x[1], reverse=True)
         return scores[:k]
@@ -165,23 +165,37 @@ for rank, (doc_id, score) in enumerate(reranked_results, start=1):
     doc_content = opensearch.get_doc_body(doc_id)
     print(f"Rank {rank} (score: {score:.6f}):\n{doc_content}\n")
 
-ground_truth = []
-i=0
-for index, row in test_bed.test_relevance_judgments.iterrows():
-    if row["topic_turn_id"] == "40_1" and i<9: 
-        ground_truth.append(row)
-        i+=1
+
+
+total_retrieved_docs = len(reranked_results)
+
+aux = test_bed.train_relevance_judgments.loc[test_bed.train_relevance_judgments['topic_turn_id'] == "40_1"]
+rel_docs = aux.loc[aux['rel'] != 0]
+
+if np.size(aux) == 0 :
+        aux = test_bed.test_relevance_judgments.loc[test_bed.test_relevance_judgments['topic_turn_id'] == "40_1"]
+    
+ground_truth = (aux.loc[aux['rel'] != 0]).sort_values(by='rel', ascending=False)
+
+print(ground_truth)
 
 metrics_LMD = []
 true = 0
-for rank, (doc_id, score) in  enumerate(reranked_results[:10], start=1):
-    for row in enumerate(ground_truth) : 
-        if doc_id == row[1]["docid"] : 
-            metrics_LMD.append({"rank" : rank, "id" : doc_id, "relevant" :1})
-            true = 1
-    if true == 0: 
-        metrics_LMD.append({"rank" : rank, "id" : doc_id, "relevant" :0})
-    true =0
+
+
+for rank, (doc_id, score) in enumerate(reranked_results[:10], start=1):
+    relevance_level = 0  
+    for index, row in ground_truth.iterrows():
+        if doc_id == row["docid"]:
+            relevance_level = row["rel"]  
+            break 
+    
+    metrics_LMD.append({"rank": rank, "id": doc_id, "relevant": relevance_level})
+
+print(metrics_LMD)
+
+
+print(ground_truth)
 
 print(metrics_LMD)
 #what's the order of the documents in the test bed relevance judgements ? are the first ones the best ? what's rel ?
