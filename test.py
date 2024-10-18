@@ -13,7 +13,8 @@ import re
 import nltk
 nltk.download('stopwords')
 from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import wordnet
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -65,7 +66,28 @@ opensearch = osearch.OSsimpleAPI()
 
 
 numdocs = 100
-test_query = topics['40_1']
+test_query = topics['34_1']
+opensearch.client.indices.close(index=opensearch.index_name)
+opensearch.client.indices.put_settings(index=opensearch.index_name, body={
+    "settings": {
+        "index": {
+            "similarity": {
+                "default": {
+                    "type": "LMJelinekMercer",
+                    "lambda": 0.7  # Smoothing parameter for Jelinek-Mercer
+                }
+            }
+        }
+    }
+})
+opensearch.client.indices.open(index=opensearch.index_name)
+
+#Check if settings are updating correctly
+index_settings = opensearch.client.indices.get_settings(index=opensearch.index_name)
+print("Updated Index Settings:")
+pp.pprint(index_settings)
+
+
 opensearch_results = opensearch.search_body(test_query, numDocs = numdocs)
 print(opensearch_results)
 
@@ -80,35 +102,9 @@ opensearch.query_terms(example_doc,'standard')
 
 opensearch.analyzer(analyzer="standard", query=example_doc)
 
-# pip install bm25s
-
-# Create your corpus here
-test_corpus = [
-    "a cat is a feline and likes to purr",
-    "a dog is the human's best friend and loves to play",
-    "a bird is a beautiful animal that can fly",
-    "a fish is a creature that lives in water and swims",
-]
-
-# Create the BM25 model and index the corpus
-retriever = bm25s.BM25(corpus=test_corpus)
-retriever.index(bm25s.tokenize(test_corpus))
-
-# Query the corpus and get top-k results
-query = "does the fish purr like a cat?"
-k = 4
-test_results, scores = retriever.retrieve(bm25s.tokenize(query), k=k)
-
-# Let's see what we got!
-for i in range(len(test_results[0])):
-    doc, score = test_results[0, i], scores[0, i]
-    print(f"Rank {i+1} (score: {score:.2f}): {doc}")
-
-
-
 # Initialize stop words and stemmer
 stop_words = set(stopwords.words('english'))
-stemmer = PorterStemmer()
+lemmatizer = WordNetLemmatizer()
 
 def preprocess_text(text):
 
@@ -117,23 +113,26 @@ def preprocess_text(text):
     # stop words
     text = ' '.join([word for word in text.split() if word not in stop_words])
     # stemming
-    text = ' '.join([stemmer.stem(word) for word in text.split()])
+    text = ' '.join([lemmatizer.lemmatize(word, pos=wordnet.VERB) for word in text.split()])
     return text
 
-def expand_query(query):
-    # list of synonms
-    synonyms = {
-        "music": ["song","melody", "opera", "piece", "singing", "tune"],
-        "origin": ["ancestor", "ancestry", "connection", "element", "influence", "provenance", "root", "source"],
-        "popular": ["attractive","beloved","famous","fashionable","favored","prominent","suitable","trendy"]
-    }
-    
-    expanded_query = query
-    for word in query.split():
-        if word in synonyms:
-            expanded_query += ' ' + ' '.join(synonyms[word])
-    
-    return expanded_query
+def get_synonyms(word):
+    synonyms = []
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            if (lemma.name().lower() != word):
+                synonyms.append(lemma.name())
+        if len(synonyms) >= 3:
+            break
+    return synonyms
+
+#def expand_query(query):
+    #list of synonms    
+    #expanded_query = query
+    #for word in query.split():
+    #    synonyms = get_synonyms(word)
+    #    expanded_query += ' ' + ' '.join(synonyms)
+    #return expanded_query
 
 # Build the corpus
 corpus = []
@@ -141,18 +140,17 @@ for index, row in opensearch_results.iterrows():
     doc_id = row['_id']
     doc_body = opensearch.get_doc_body(doc_id)
     processed_doc = preprocess_text(doc_body) 
-    corpus.append(processed_doc)
+    corpus.append(doc_body)
 
 
 query = test_query
 processed_query = preprocess_text(query)
-expanded_query = expand_query(processed_query)
+#expanded_query = expand_query(processed_query)
 print('Unprocessed query: ' + query)
 print('Processed: ' + processed_query)
-print('Expanded Query:', expanded_query)
 
 # tokenize and index
-tokenized_query = bm25s.tokenize(expanded_query)
+tokenized_query = bm25s.tokenize(processed_query)
 print("Tokenized Query:", tokenized_query)
 
 retriever = bm25s.BM25(corpus=corpus)

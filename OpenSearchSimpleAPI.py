@@ -49,7 +49,17 @@ class OSsimpleAPI:
             print("Index does not exist.")
 
     def search_body(self, query=None, numDocs=10):
-        result = self.client.search(index=self.index_name, body={"query": {"match": {"contents": {'query': query}}}}, size=numDocs)
+        search_query = {
+            "query": {
+                "match": {
+                    "contents": {
+                        'query': query
+                    }
+                }
+            }
+        }
+    
+        result = self.client.search(index=self.index_name, body=search_query, size=numDocs)
         df = json_normalize(result["hits"]["hits"])
         return df
 
