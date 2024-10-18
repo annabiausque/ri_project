@@ -164,3 +164,25 @@ reranked_results = lmd_retriever.retrieve(expanded_query, k=10)
 for rank, (doc_id, score) in enumerate(reranked_results, start=1):
     doc_content = opensearch.get_doc_body(doc_id)
     print(f"Rank {rank} (score: {score:.6f}):\n{doc_content}\n")
+
+ground_truth = []
+i=0
+for index, row in test_bed.test_relevance_judgments.iterrows():
+    if row["topic_turn_id"] == "40_1" and i<9: 
+        ground_truth.append(row)
+        i+=1
+
+metrics_LMD = []
+true = 0
+for rank, (doc_id, score) in  enumerate(reranked_results[:10], start=1):
+    for row in enumerate(ground_truth) : 
+        if doc_id == row[1]["docid"] : 
+            metrics_LMD.append({"rank" : rank, "id" : doc_id, "relevant" :1})
+            true = 1
+    if true == 0: 
+        metrics_LMD.append({"rank" : rank, "id" : doc_id, "relevant" :0})
+    true =0
+
+print(metrics_LMD)
+#what's the order of the documents in the test bed relevance judgements ? are the first ones the best ? what's rel ?
+
