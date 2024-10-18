@@ -20,8 +20,8 @@ pp = pprint.PrettyPrinter(indent=4)
 
 test_bed = trec.ConvSearchEvaluation()
 
-print()
-print("========================================== Training conversations =====")
+#print()
+#print("========================================== Training conversations =====")
 topics = {}
 for topic in test_bed.train_topics:
     conv_id = topic['number']
@@ -29,7 +29,7 @@ for topic in test_bed.train_topics:
     if conv_id not in (1, 2, 4, 7, 15, 17,18,22,23,24,25,27,30):
         continue
 
-    print()
+    #print()
     #print(conv_id, "  ", topic['title'])
 
     for turn in topic['turn']:
@@ -40,15 +40,15 @@ for topic in test_bed.train_topics:
         #print(topic_turn_id, utterance)
         topics[topic_turn_id] = utterance
 
-print()
-print("========================================== Test conversations =====")
+#print()
+#print("========================================== Test conversations =====")
 for topic in test_bed.test_topics:
     conv_id = topic['number']
 
     if conv_id not in (31, 32, 33, 34, 37, 40, 49, 50, 54, 56, 58, 59, 61, 67, 68, 69, 75, 77, 78, 79):
         continue
 
-    print()
+
     #print(conv_id, "  ", topic['title'])
 
     for turn in topic['turn']:
@@ -156,9 +156,10 @@ print("Tokenized Query:", tokenized_query)
 retriever = bm25s.BM25(corpus=corpus)
 retriever.index(bm25s.tokenize(corpus))
 
-k = 4
+k = 100
 results, scores = retriever.retrieve(tokenized_query, k=k)
 
 for i in range(len(results[0])):
     doc, score = results[0, i], scores[0, i]
     print(f"Rank {i+1} (score: {score:.2f}): {doc}")
+
