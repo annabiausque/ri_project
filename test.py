@@ -81,7 +81,7 @@ opensearch = osearch.OSsimpleAPI()
 
 
 numdocs = 100
-test_query = topics['34_1']
+test_query = topics['34_3']
 '''Testing to use opensearch similarity search options
 opensearch.client.indices.close(index=opensearch.index_name)
 opensearch.client.indices.put_settings(index=opensearch.index_name, body={

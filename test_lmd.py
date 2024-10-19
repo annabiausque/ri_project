@@ -8,7 +8,6 @@ from nltk.stem import PorterStemmer
 import OpenSearchSimpleAPI as osearch
 import bm25s
 
-
 nltk.download('stopwords')
 
 pp = pprint.PrettyPrinter(indent=4)
