@@ -42,7 +42,7 @@ for topic in test_bed.test_topics:
 opensearch = osearch.OSsimpleAPI()
 
 numdocs = 100
-test_query = topics['40_1']
+test_query = topics['77_1']
 
 
 opensearch_results = opensearch.search_body(test_query, numDocs=numdocs)
@@ -59,7 +59,7 @@ def preprocess_text(text):
     return text
 
 def expand_query(query):
-    expanded_query = query + ' music music music music'
+    expanded_query = query 
     return expanded_query
 
 
@@ -160,20 +160,24 @@ class LMDRetriever:
 lmd_retriever = LMDRetriever(opensearch=opensearch, corpus_ids=bm25_doc_ids)
 reranked_results = lmd_retriever.retrieve(expanded_query, k=10)
 
-
+data = []
+best_docs = []
 for rank, (doc_id, score) in enumerate(reranked_results, start=1):
     doc_content = opensearch.get_doc_body(doc_id)
+    best_docs.append(doc_id)
     print(f"Rank {rank} (score: {score:.6f}):\n{doc_content}\n")
 
+data.append({"turn" : "77_1", "query" : query, '_id' : best_docs })
+result_df = pd.DataFrame(data)
 
 
 total_retrieved_docs = len(reranked_results)
 
-aux = test_bed.train_relevance_judgments.loc[test_bed.train_relevance_judgments['topic_turn_id'] == "40_1"]
+aux = test_bed.train_relevance_judgments.loc[test_bed.train_relevance_judgments['topic_turn_id'] == "77_1"]
 rel_docs = aux.loc[aux['rel'] != 0]
 
 if np.size(aux) == 0 :
-        aux = test_bed.test_relevance_judgments.loc[test_bed.test_relevance_judgments['topic_turn_id'] == "40_1"]
+        aux = test_bed.test_relevance_judgments.loc[test_bed.test_relevance_judgments['topic_turn_id'] == "77_1"]
     
 ground_truth = (aux.loc[aux['rel'] != 0]).sort_values(by='rel', ascending=False)
 
@@ -191,12 +195,4 @@ for rank, (doc_id, score) in enumerate(reranked_results[:10], start=1):
             break 
     
     metrics_LMD.append({"rank": rank, "id": doc_id, "relevant": relevance_level})
-
-print(metrics_LMD)
-
-
-print(ground_truth)
-
-print(metrics_LMD)
-#what's the order of the documents in the test bed relevance judgements ? are the first ones the best ? what's rel ?
 

@@ -30,6 +30,7 @@ class ConvSearchEvaluation:
         set_of_conversations = set(self.train_relevance_judgments['topic_turn_id'])
         self.judged_conversations = np.unique([a.split('_', 1)[0] for a in set_of_conversations])
 
+
     def num_rel(self, topic_turn_id):
                 # Try to get the relevance judgments from the TRAINING set
         aux = self.train_relevance_judgments.loc[self.train_relevance_judgments['topic_turn_id'] == (topic_turn_id)]
@@ -44,7 +45,7 @@ class ConvSearchEvaluation:
         
         
     def eval(self, result, topic_turn_id):
-        total_retrieved_docs = result.count()._id
+        total_retrieved_docs = len(result['_id'])
 
         # Try to get the relevance judgments from the TRAINING set
         aux = self.train_relevance_judgments.loc[self.train_relevance_judgments['topic_turn_id'] == (topic_turn_id)]
