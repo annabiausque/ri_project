@@ -1,0 +1,14 @@
+
+Untitled.ipynb
+
+data/evaluation/.ipynb_checkpoints/*
+
+data/training/.ipynb_checkpoints/*
+
+*.pyc
+
+.ipynb_checkpoints/
+
+__pycache__/
+
+*.dat
